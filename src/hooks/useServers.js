@@ -9,6 +9,7 @@ export function useServers() {
   const [filterTags, setFilterTags] = useState([]);
   const [filterEnvironment, setFilterEnvironment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterAccount, setFilterAccount] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'serverName', direction: 'asc' });
 
   // Load servers from API on mount
@@ -50,7 +51,8 @@ export function useServers() {
         server.ip?.toLowerCase().includes(term) ||
         server.hostname?.toLowerCase().includes(term) ||
         server.serverName?.toLowerCase().includes(term) ||
-        server.notes?.toLowerCase().includes(term)
+        server.notes?.toLowerCase().includes(term) ||
+        server.account?.toLowerCase().includes(term)
       );
     }
 
@@ -71,6 +73,11 @@ export function useServers() {
       result = result.filter(server => server.status === filterStatus);
     }
 
+    // Apply account filter
+    if (filterAccount) {
+      result = result.filter(server => server.account === filterAccount);
+    }
+
     // Apply sorting
     result.sort((a, b) => {
       const aVal = a[sortConfig.key] || '';
@@ -82,7 +89,7 @@ export function useServers() {
     });
 
     return result;
-  }, [servers, searchTerm, filterTags, filterEnvironment, filterStatus, sortConfig]);
+  }, [servers, searchTerm, filterTags, filterEnvironment, filterStatus, filterAccount, sortConfig]);
 
   // CRUD operations
   const addServer = useCallback(async (serverData) => {
@@ -90,7 +97,8 @@ export function useServers() {
       const newServer = await api.createServer({
         ...serverData,
         status: serverData.status || 'unknown',
-        tags: serverData.tags || []
+        tags: serverData.tags || [],
+        environment: serverData.environment || 'development'
       });
       setServers(prev => [...prev, newServer]);
       return newServer;
@@ -169,6 +177,8 @@ export function useServers() {
     setFilterEnvironment,
     filterStatus,
     setFilterStatus,
+    filterAccount,
+    setFilterAccount,
     sortConfig,
     handleSort,
     addServer,

@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Plus, Server, Wifi, WifiOff, HelpCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Server, Wifi, WifiOff, HelpCircle, AlertCircle, Loader2, LogOut, User, Settings as SettingsIcon } from 'lucide-react';
 import { useServers } from '../hooks/useServers';
+import { useAuth } from '../hooks/useAuth.jsx';
+import { useConfig } from '../hooks/useConfig';
 import SearchBar from './SearchBar';
 import ServerTable from './ServerTable';
 import ServerForm from './ServerForm';
 import ImportExport from './ImportExport';
+import Settings from './Settings';
 
 export default function Dashboard() {
+  const { user, logout, isAdmin } = useAuth();
   const {
     servers,
     filteredServers,
@@ -21,6 +25,8 @@ export default function Dashboard() {
     setFilterEnvironment,
     filterStatus,
     setFilterStatus,
+    filterAccount,
+    setFilterAccount,
     sortConfig,
     handleSort,
     addServer,
@@ -31,12 +37,24 @@ export default function Dashboard() {
     refresh
   } = useServers();
 
+  const {
+    accounts,
+    environments,
+    addAccount,
+    removeAccount,
+    addEnvironment,
+    removeEnvironment
+  } = useConfig();
+
   const [showForm, setShowForm] = useState(false);
   const [editingServer, setEditingServer] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (only for admin)
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (!isAdmin) return;
+
       // Ctrl/Cmd + K for search focus
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
@@ -56,7 +74,7 @@ export default function Dashboard() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAdmin]);
 
   const handleAddServer = (data) => {
     addServer(data);
@@ -64,6 +82,7 @@ export default function Dashboard() {
   };
 
   const handleEditServer = (server) => {
+    if (!isAdmin) return;
     setEditingServer(server);
     setShowForm(true);
   };
@@ -93,25 +112,51 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Server className="text-blue-600" size={28} />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Server Dashboard</h1>
-                <p className="text-sm text-gray-500">Manage your server mappings</p>
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900">Server Dashboard</h1>
             </div>
             <div className="flex items-center gap-3">
-              <ImportExport servers={servers} onImport={importServers} />
+              {/* User info */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
+                <User size={16} className="text-gray-600" />
+                <span className="text-sm font-medium text-gray-700">{user?.username}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${isAdmin ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}>
+                  {user?.role}
+                </span>
+              </div>
+
+              {/* Admin-only actions */}
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => setShowSettings(true)}
+                    className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Settings"
+                  >
+                    <SettingsIcon size={20} />
+                  </button>
+                  <ImportExport servers={servers} onImport={importServers} />
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    <Plus size={20} />
+                    Add Server
+                  </button>
+                </>
+              )}
+
               <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                onClick={logout}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Logout"
               >
-                <Plus size={20} />
-                Add Server
+                <LogOut size={20} />
               </button>
             </div>
           </div>
@@ -119,7 +164,7 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -202,9 +247,13 @@ export default function Dashboard() {
             onEnvironmentChange={setFilterEnvironment}
             filterStatus={filterStatus}
             onStatusChange={setFilterStatus}
+            filterAccount={filterAccount}
+            onAccountChange={setFilterAccount}
             filterTags={filterTags}
             onTagsChange={setFilterTags}
             allTags={allTags}
+            allAccounts={accounts}
+            allEnvironments={environments}
           />
         </div>
 
@@ -218,28 +267,46 @@ export default function Dashboard() {
           servers={filteredServers}
           sortConfig={sortConfig}
           onSort={handleSort}
-          onEdit={handleEditServer}
-          onDelete={deleteServer}
-          onStatusUpdate={updateServerStatus}
+          onEdit={isAdmin ? handleEditServer : null}
+          onDelete={isAdmin ? deleteServer : null}
+          onStatusUpdate={isAdmin ? updateServerStatus : null}
+          isAdmin={isAdmin}
         />
 
-        {/* Keyboard shortcuts hint */}
-        <div className="mt-6 text-center text-sm text-gray-400">
-          <span className="hidden sm:inline">
-            Keyboard shortcuts: <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+N</kbd> New server
-            {' '}<kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+K</kbd> Search
-            {' '}<kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Esc</kbd> Close modal
-          </span>
-        </div>
+        {/* Keyboard shortcuts hint (admin only) */}
+        {isAdmin && (
+          <div className="mt-6 text-center text-sm text-gray-400">
+            <span className="hidden sm:inline">
+              Keyboard shortcuts: <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+N</kbd> New server
+              {' '}<kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+K</kbd> Search
+              {' '}<kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Esc</kbd> Close modal
+            </span>
+          </div>
+        )}
       </main>
 
-      {/* Server Form Modal */}
-      {showForm && (
+      {/* Server Form Modal (admin only) */}
+      {showForm && isAdmin && (
         <ServerForm
           server={editingServer}
           onSubmit={editingServer ? handleUpdateServer : handleAddServer}
           onCancel={handleCloseForm}
           allTags={allTags}
+          allAccounts={accounts}
+          allEnvironments={environments}
+        />
+      )}
+
+      {/* Settings Modal (admin only) */}
+      {showSettings && isAdmin && (
+        <Settings
+          accounts={accounts}
+          environments={environments}
+          onAddAccount={addAccount}
+          onRemoveAccount={removeAccount}
+          onAddEnvironment={addEnvironment}
+          onRemoveEnvironment={removeEnvironment}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit, Trash2, ChevronUp, ChevronDown, RefreshCw, MoreVertical, Copy, CheckCircle } from 'lucide-react';
+import { Edit, Trash2, ChevronUp, ChevronDown, RefreshCw, Copy, CheckCircle } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { formatLastChecked } from '../utils/ping';
 
@@ -16,7 +16,8 @@ export default function ServerTable({
   onSort,
   onEdit,
   onDelete,
-  onStatusUpdate
+  onStatusUpdate,
+  isAdmin = false
 }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
@@ -70,6 +71,7 @@ export default function ServerTable({
             <SortableHeader column="serverName" label="Server Name" />
             <SortableHeader column="ip" label="IP Address" />
             <SortableHeader column="hostname" label="Hostname" />
+            <SortableHeader column="account" label="Account" />
             <SortableHeader column="environment" label="Environment" />
             <SortableHeader column="status" label="Status" />
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -78,9 +80,11 @@ export default function ServerTable({
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Last Checked
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
-            </th>
+            {isAdmin && (
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
@@ -137,6 +141,15 @@ export default function ServerTable({
                 )}
               </td>
               <td className="px-4 py-3">
+                {server.account ? (
+                  <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                    {server.account}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
                 <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${ENVIRONMENT_COLORS[server.environment]}`}>
                   {server.environment}
                 </span>
@@ -166,51 +179,53 @@ export default function ServerTable({
               <td className="px-4 py-3 text-sm text-gray-500">
                 {formatLastChecked(server.lastChecked)}
               </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-end gap-1">
-                  <button
-                    onClick={() => onStatusUpdate(server.id, server.status)}
-                    className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Update last checked time"
-                  >
-                    <RefreshCw size={16} />
-                  </button>
-                  <button
-                    onClick={() => onEdit(server)}
-                    className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                    title="Edit server"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  {deleteConfirm === server.id ? (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          onDelete(server.id);
-                          setDeleteConfirm(null);
-                        }}
-                        className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(null)}
-                        className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+              {isAdmin && (
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-1">
                     <button
-                      onClick={() => setDeleteConfirm(server.id)}
-                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Delete server"
+                      onClick={() => onStatusUpdate(server.id, server.status)}
+                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Update last checked time"
                     >
-                      <Trash2 size={16} />
+                      <RefreshCw size={16} />
                     </button>
-                  )}
-                </div>
-              </td>
+                    <button
+                      onClick={() => onEdit(server)}
+                      className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                      title="Edit server"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    {deleteConfirm === server.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            onDelete(server.id);
+                            setDeleteConfirm(null);
+                          }}
+                          className="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(null)}
+                          className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirm(server.id)}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete server"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

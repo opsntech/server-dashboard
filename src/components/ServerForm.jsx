@@ -2,26 +2,20 @@ import { useState, useEffect } from 'react';
 import { X, Save, Server } from 'lucide-react';
 import TagManager from './TagManager';
 
-const ENVIRONMENTS = [
-  { value: 'production', label: 'Production' },
-  { value: 'staging', label: 'Staging' },
-  { value: 'development', label: 'Development' },
-  { value: 'other', label: 'Other' }
-];
-
 const STATUSES = [
   { value: 'online', label: 'Online' },
   { value: 'offline', label: 'Offline' },
   { value: 'unknown', label: 'Unknown' }
 ];
 
-export default function ServerForm({ server, onSubmit, onCancel, allTags }) {
+export default function ServerForm({ server, onSubmit, onCancel, allTags, allAccounts = [], allEnvironments = [] }) {
   const isEditing = !!server;
 
   const [formData, setFormData] = useState({
     ip: '',
     hostname: '',
     serverName: '',
+    account: '',
     environment: 'development',
     status: 'unknown',
     tags: [],
@@ -36,6 +30,7 @@ export default function ServerForm({ server, onSubmit, onCancel, allTags }) {
         ip: server.ip || '',
         hostname: server.hostname || '',
         serverName: server.serverName || '',
+        account: server.account || '',
         environment: server.environment || 'development',
         status: server.status || 'unknown',
         tags: server.tags || [],
@@ -150,6 +145,23 @@ export default function ServerForm({ server, onSubmit, onCancel, allTags }) {
             />
           </div>
 
+          {/* Account/Product */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Account / Product
+            </label>
+            <select
+              value={formData.account}
+              onChange={(e) => handleChange('account', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="">Select account...</option>
+              {allAccounts.map(account => (
+                <option key={account} value={account}>{account}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Environment */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -160,7 +172,7 @@ export default function ServerForm({ server, onSubmit, onCancel, allTags }) {
               onChange={(e) => handleChange('environment', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
-              {ENVIRONMENTS.map(env => (
+              {allEnvironments.map(env => (
                 <option key={env.value} value={env.value}>{env.label}</option>
               ))}
             </select>

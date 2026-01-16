@@ -2,6 +2,8 @@ import express from 'express';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { login, verifyToken, authMiddleware, adminMiddleware, getUserById, changePassword } from './auth.js';
+import { getAccounts, addAccount, removeAccount, getEnvironments, addEnvironment, removeEnvironment } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,10 +28,59 @@ function writeData(data) {
   writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// API Routes
+// ============ AUTH ROUTES (Public) ============
 
-// Get all servers
-app.get('/api/servers', (req, res) => {
+// Login
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  const result = login(username, password);
+
+  if (!result.success) {
+    return res.status(401).json({ error: result.error });
+  }
+
+  res.json({ token: result.token, user: result.user });
+});
+
+// Verify token / Get current user
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  const user = getUserById(req.user.id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  res.json(user);
+});
+
+// Change password
+app.post('/api/auth/change-password', authMiddleware, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  }
+
+  const result = changePassword(req.user.id, currentPassword, newPassword);
+
+  if (!result.success) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  res.json({ message: 'Password changed successfully' });
+});
+
+// ============ SERVER ROUTES ============
+
+// Get all servers (authenticated)
+app.get('/api/servers', authMiddleware, (req, res) => {
   try {
     const servers = readData();
     res.json(servers);
@@ -38,8 +89,8 @@ app.get('/api/servers', (req, res) => {
   }
 });
 
-// Add a new server
-app.post('/api/servers', (req, res) => {
+// Add a new server (admin only)
+app.post('/api/servers', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const servers = readData();
     const newServer = {
@@ -56,8 +107,8 @@ app.post('/api/servers', (req, res) => {
   }
 });
 
-// Update a server
-app.put('/api/servers/:id', (req, res) => {
+// Update a server (admin only)
+app.put('/api/servers/:id', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const servers = readData();
     const index = servers.findIndex(s => s.id === req.params.id);
@@ -77,8 +128,8 @@ app.put('/api/servers/:id', (req, res) => {
   }
 });
 
-// Delete a server
-app.delete('/api/servers/:id', (req, res) => {
+// Delete a server (admin only)
+app.delete('/api/servers/:id', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const servers = readData();
     const filtered = servers.filter(s => s.id !== req.params.id);
@@ -92,8 +143,8 @@ app.delete('/api/servers/:id', (req, res) => {
   }
 });
 
-// Bulk import servers
-app.post('/api/servers/import', (req, res) => {
+// Bulk import servers (admin only)
+app.post('/api/servers/import', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const { servers: newServers, replace } = req.body;
 
@@ -120,13 +171,75 @@ app.post('/api/servers/import', (req, res) => {
   }
 });
 
-// Export all servers (same as GET but explicit endpoint)
-app.get('/api/servers/export', (req, res) => {
+// Export all servers (authenticated)
+app.get('/api/servers/export', authMiddleware, (req, res) => {
   try {
     const servers = readData();
     res.json(servers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to export servers' });
+  }
+});
+
+// ============ CONFIG ROUTES ============
+
+// Get config (accounts and environments)
+app.get('/api/config', authMiddleware, (req, res) => {
+  try {
+    res.json({
+      accounts: getAccounts(),
+      environments: getEnvironments()
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get config' });
+  }
+});
+
+// Add account (admin only)
+app.post('/api/config/accounts', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const { account } = req.body;
+    if (!account || !account.trim()) {
+      return res.status(400).json({ error: 'Account name is required' });
+    }
+    const accounts = addAccount(account.trim());
+    res.json({ accounts });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add account' });
+  }
+});
+
+// Remove account (admin only)
+app.delete('/api/config/accounts/:account', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const accounts = removeAccount(decodeURIComponent(req.params.account));
+    res.json({ accounts });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove account' });
+  }
+});
+
+// Add environment (admin only)
+app.post('/api/config/environments', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const { value, label } = req.body;
+    if (!value || !label) {
+      return res.status(400).json({ error: 'Value and label are required' });
+    }
+    const environments = addEnvironment({ value: value.trim().toLowerCase(), label: label.trim() });
+    res.json({ environments });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add environment' });
+  }
+});
+
+// Remove environment (admin only)
+app.delete('/api/config/environments/:value', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const environments = removeEnvironment(decodeURIComponent(req.params.value));
+    res.json({ environments });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove environment' });
   }
 });
 
@@ -143,7 +256,7 @@ if (existsSync(distPath)) {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
-  console.log(`API available at http://localhost:${PORT}/api/servers`);
+  console.log(`API available at http://localhost:${PORT}/api`);
   if (existsSync(distPath)) {
     console.log(`Serving static files from ${distPath}`);
   }

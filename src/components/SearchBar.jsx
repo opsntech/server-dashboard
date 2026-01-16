@@ -1,13 +1,5 @@
 import { Search, X, Filter } from 'lucide-react';
 
-const ENVIRONMENTS = [
-  { value: '', label: 'All Environments' },
-  { value: 'production', label: 'Production' },
-  { value: 'staging', label: 'Staging' },
-  { value: 'development', label: 'Development' },
-  { value: 'other', label: 'Other' }
-];
-
 const STATUSES = [
   { value: '', label: 'All Statuses' },
   { value: 'online', label: 'Online' },
@@ -22,16 +14,21 @@ export default function SearchBar({
   onEnvironmentChange,
   filterStatus,
   onStatusChange,
+  filterAccount,
+  onAccountChange,
   filterTags,
   onTagsChange,
-  allTags
+  allTags,
+  allAccounts = [],
+  allEnvironments = []
 }) {
-  const hasActiveFilters = filterEnvironment || filterStatus || filterTags.length > 0;
+  const hasActiveFilters = filterEnvironment || filterStatus || filterAccount || filterTags.length > 0;
 
   const clearAllFilters = () => {
     onSearchChange('');
     onEnvironmentChange('');
     onStatusChange('');
+    onAccountChange('');
     onTagsChange([]);
   };
 
@@ -45,7 +42,7 @@ export default function SearchBar({
             type="text"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by IP, hostname, or server name..."
+            placeholder="Search by IP, hostname, server name, or account..."
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           {searchTerm && (
@@ -58,13 +55,26 @@ export default function SearchBar({
           )}
         </div>
 
+        {/* Account filter */}
+        <select
+          value={filterAccount}
+          onChange={(e) => onAccountChange(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+        >
+          <option value="">All Accounts</option>
+          {allAccounts.map(account => (
+            <option key={account} value={account}>{account}</option>
+          ))}
+        </select>
+
         {/* Environment filter */}
         <select
           value={filterEnvironment}
           onChange={(e) => onEnvironmentChange(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
         >
-          {ENVIRONMENTS.map(env => (
+          <option value="">All Environments</option>
+          {allEnvironments.map(env => (
             <option key={env.value} value={env.value}>{env.label}</option>
           ))}
         </select>
