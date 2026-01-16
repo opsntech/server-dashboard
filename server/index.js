@@ -4,6 +4,16 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { login, verifyToken, authMiddleware, adminMiddleware, getUserById, changePassword } from './auth.js';
 import { getAccounts, addAccount, removeAccount, getEnvironments, addEnvironment, removeEnvironment } from './config.js';
+import {
+  getMasterServices,
+  addMasterService,
+  removeMasterService,
+  getConfigurations,
+  getConfigByAccountEnv,
+  createConfig,
+  updateConfig,
+  deleteConfig
+} from './service-segregation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,7 +23,7 @@ const PORT = process.env.PORT || 3001;
 const DATA_FILE = process.env.DATA_FILE || join(__dirname, 'data', 'servers.json');
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // Limit request body size
 
 // Helper functions
 function readData() {
@@ -240,6 +250,129 @@ app.delete('/api/config/environments/:value', authMiddleware, adminMiddleware, (
     res.json({ environments });
   } catch (error) {
     res.status(500).json({ error: 'Failed to remove environment' });
+  }
+});
+
+// ============ SERVICE SEGREGATION ROUTES ============
+
+// Get all master services (authenticated)
+app.get('/api/service-segregation/services', authMiddleware, (req, res) => {
+  try {
+    const services = getMasterServices();
+    res.json(services);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get services' });
+  }
+});
+
+// Add new master service (admin only)
+app.post('/api/service-segregation/services', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const { name, defaultPriority } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Service name is required' });
+    }
+    const services = addMasterService(name.trim(), defaultPriority || 'MEDIUM');
+    res.status(201).json(services);
+  } catch (error) {
+    if (error.message === 'Service already exists') {
+      return res.status(409).json({ error: error.message });
+    }
+    if (error.message.includes('Invalid')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to add service' });
+  }
+});
+
+// Remove master service (admin only)
+app.delete('/api/service-segregation/services/:name', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const services = removeMasterService(decodeURIComponent(req.params.name));
+    res.json(services);
+  } catch (error) {
+    if (error.message === 'Service not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to remove service' });
+  }
+});
+
+// Get all configurations (authenticated)
+app.get('/api/service-segregation/configs', authMiddleware, (req, res) => {
+  try {
+    const configs = getConfigurations();
+    res.json(configs);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get configurations' });
+  }
+});
+
+// Get specific configuration by account and environment (authenticated)
+app.get('/api/service-segregation/configs/:account/:environment', authMiddleware, (req, res) => {
+  try {
+    const config = getConfigByAccountEnv(
+      decodeURIComponent(req.params.account),
+      decodeURIComponent(req.params.environment)
+    );
+    if (!config) {
+      return res.status(404).json({ error: 'Configuration not found' });
+    }
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get configuration' });
+  }
+});
+
+// Create new configuration (admin only)
+app.post('/api/service-segregation/configs', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const { account, environment } = req.body;
+    if (!account || !environment) {
+      return res.status(400).json({ error: 'Account and environment are required' });
+    }
+    const config = createConfig(account, environment);
+    res.status(201).json(config);
+  } catch (error) {
+    if (error.message.includes('already exists')) {
+      return res.status(409).json({ error: error.message });
+    }
+    if (error.message.includes('Invalid')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to create configuration' });
+  }
+});
+
+// Update configuration (admin only)
+app.put('/api/service-segregation/configs/:id', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const config = updateConfig(req.params.id, req.body);
+    res.json(config);
+  } catch (error) {
+    if (error.message === 'Configuration not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.includes('Invalid')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to update configuration' });
+  }
+});
+
+// Delete configuration (admin only)
+app.delete('/api/service-segregation/configs/:id', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    deleteConfig(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    if (error.message === 'Configuration not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.includes('Invalid')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Failed to delete configuration' });
   }
 });
 

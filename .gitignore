@@ -7,6 +7,9 @@ dist/
 # Data files (user data should not be in repo)
 data/
 server/data/servers.json
+server/data/config.json
+server/data/users.json
+server/data/service-segregation.json
 
 # Environment files
 .env

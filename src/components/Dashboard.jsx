@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Server, Wifi, WifiOff, HelpCircle, AlertCircle, Loader2, LogOut, User, Settings as SettingsIcon } from 'lucide-react';
+import { Plus, Server, Wifi, WifiOff, HelpCircle, AlertCircle, Loader2, LogOut, User, Settings as SettingsIcon, Layers } from 'lucide-react';
 import { useServers } from '../hooks/useServers';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useConfig } from '../hooks/useConfig';
@@ -8,6 +8,7 @@ import ServerTable from './ServerTable';
 import ServerForm from './ServerForm';
 import ImportExport from './ImportExport';
 import Settings from './Settings';
+import { ServiceSegregationPage } from './ServiceSegregation';
 
 export default function Dashboard() {
   const { user, logout, isAdmin } = useAuth();
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingServer, setEditingServer] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showServiceSegregation, setShowServiceSegregation] = useState(false);
 
   // Keyboard shortcuts (only for admin)
   useEffect(() => {
@@ -108,6 +110,15 @@ export default function Dashboard() {
     unknown: servers.filter(s => s.status === 'unknown').length
   };
 
+  // Show Service Segregation Page if active
+  if (showServiceSegregation) {
+    return (
+      <ServiceSegregationPage
+        onBack={() => setShowServiceSegregation(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -129,6 +140,16 @@ export default function Dashboard() {
                   {user?.role}
                 </span>
               </div>
+
+              {/* Service Segregation button (visible to all authenticated users) */}
+              <button
+                onClick={() => setShowServiceSegregation(true)}
+                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Service Segregation"
+              >
+                <Layers size={20} />
+                <span className="hidden sm:inline">Services</span>
+              </button>
 
               {/* Admin-only actions */}
               {isAdmin && (
