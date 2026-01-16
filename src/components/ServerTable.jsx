@@ -93,7 +93,7 @@ export default function ServerTable({
               <td className="px-4 py-3">
                 <div className="font-medium text-gray-900">{server.serverName || '-'}</div>
                 {server.notes && (
-                  <div className="text-xs text-gray-500 truncate max-w-xs" title={server.notes}>
+                  <div className="text-xs text-gray-500 whitespace-pre-wrap break-words max-w-md">
                     {server.notes}
                   </div>
                 )}
