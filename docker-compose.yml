@@ -1,0 +1,13 @@
+services:
+  server-dashboard:
+    build: .
+    container_name: server-dashboard
+    ports:
+      - "3001:3001"
+    volumes:
+      # Persist server data outside container
+      - ./data:/app/server/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
