@@ -39,4 +39,4 @@ docker run -d -p 3001:3001 -v ./server/data:/app/server/data server-dashboard
 
 ## License
 
-Private
+MIT
